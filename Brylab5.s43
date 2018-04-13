@@ -1,0 +1,149 @@
+/*
+Name: Bryan Fernandez
+Lab 5
+Instructor: Mr. Sharshembiev
+Section: 07
+Date: 9/27/2017
+Description: Blinking LEDs 
+
+Summary:                 LED1    LED2           1   0001
+Program Startup         5 Hz    On              2   0010
+                                                3   0011
+SW1 Pressed             Off     5 Hz            4   0100
+SW1 Released            Off     Off             5   0101    LED1 blinks, LED2 is off
+SW2 Pressed             Off     On              6   0110
+SW2 Released            On      Off             7   0111   LED1 blinks, LED2 stay on
+SW1 = P1.0                                      8   1000
+SW2 = P1.1
+
+Bonus: If both switches are pressed at the same time, both LED1 and LED2 
+begin blinking alternately at 4 Hz. When both released, both LED1 and LED2 should
+turn on.
+              MSP430xG461x
+;             -----------------
+;         /|\|                 |
+;          | |                 |
+;          --|RST              |
+;            |             P2.2|-->LED1(GREEN)
+;            |             P2.1|-->LED2(YELLOW)
+;            |             P1.0|-->SW1
+;            |             P1.1|-->SW2
+;*/
+
+#include <msp430xG46x.h>
+
+          RSEG  CSTACK
+          RSEG  CODE
+          
+RESET:    mov.w #SFE(CSTACK),   SP
+StopWDT:
+          mov.w #WDTPW+WDTHOLD, &WDTCTL
+Setup:
+          bis.b #006h,  &P2DIR          //(0000_0110) Configure P2.1 & P2.2 as output ports
+          bis.b #006h,  &P2OUT          //(0000_0110) Turned on both LEDs 1 and 2
+                      
+          bis.w #GIE,   SR              //Global interrupts enabled
+          
+Port1:
+          bis.b #003h,  &P1IE           //Port 1 interrupt from bit 0 and bit 1 (0000_0011)
+          bis.b #003h,  &P1IES          //Set interrupt for hi to low edge
+          bic.b #003h,  &P1IFG          //Clear interrupt flag
+         
+Startup: 
+          xor.b #004h,  &P2OUT          //(0000_0100) blink LED1
+          mov.w #020000, R15            //20k * 10 * 1us = 0.2s  or 5Hz
+L0:       dec.w R15                     // 1 instruction
+          nop                             // 7 nop instructions and 2 from jnz
+          nop
+          nop
+          nop
+          nop
+          nop
+          nop
+          jnz   L0                      //keep decrementing until 0 reached
+          jmp   Startup  
+InfLoop:
+          jmp   $                       //infinite loop
+          
+//====================== Switch is pressed =====================================
+SW1_ISR:
+        bic.b   #003h,  &P1IFG          //Clear interrupt flags
+        bis.b   #006h,  &P2OUT             
+        bic.b   #006h,  &P2OUT          //(0000_0010) Turn off LED1 & LED2
+        
+Debounce:
+        mov.w   #02000, R15             //Set to 20ms delay
+L1:     dec.w   R15
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        jnz     L1                      //Delay over?
+        bit.b   #00000001b, &P1IN       //verify SW1 is still pressed
+        jz      Switch1                 //if SW1 is pressed jump to this
+        bit.b   #00000010b, &P1IN       //is SW2 pressed?
+        jz      Switch2                 //if yes, jump to switch2 
+        bit.b   #00000011b, &P1IN       //if SW1 & SW2 are pressed
+        jz      SW12on
+//==============================================================================         
+Switch1:
+        xor.b   #002h,  &P2OUT          //(0000_0010) LED1 is off and LED2 is on
+        
+        mov.w   #020000, R15            //20k * 10 * 1us = 0.2s  or 5Hz
+L2:     dec.w   R15                     // 1 instruction
+        nop                             // 7 nop instructions and 2 from jnz
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        jnz     L2                      //keep decrementing until 0 reached
+        
+SW1wait:
+        bit.b   #001h,  &P1IN           //is SW1 still pressed?
+        jz      Switch1                 //then keep looping since it's still pressed
+        bic.b   #006h,  &P2OUT          //turn off both LEDs
+        jmp     isr_ret                 //exit 
+//==============================================================================        
+Switch2:
+        bis.b   #002h,  &P2OUT          //(0000_0010) LED1 off & LED2 on
+SW2wait:
+        bit.b   #002h,  &P1IN           //is SW2 still pressed?
+        jz      SW2wait                 //keep checking if it's still being pressed
+        bic.b   #006h,  &P2OUT          //(0000_1001)  Turn off both LEDs
+        bis.b   #004h,  &P2OUT          //(0000_0100) LED1 on & LED2 off
+        jmp     isr_ret                 //Head to exit
+//==============================================================================
+SW12on:
+        bis.b    #004h,  &P2OUT          //(0000_0100) both LEDs on
+blinking:
+        xor.b    #006h,  &P2OUT          //(0000_0110) alternate blinking
+        mov.w   #025000, R15            //25k * 10 * 1us = 0.25s  or 4Hz
+L3:     dec.w   R15                     // 1 instruction
+        nop                             // 7 nop instructions and 2 from jnz
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        jnz     L3                      //keep decrementing until 0 reached
+        bit.b   #003h,  &P1IN           //Are both switches still pressed?
+        jz      blinking 
+        bis.b   #006h,  &P2OUT          //both switches released, turn on  both LEDs
+        
+isr_ret:
+        reti                            //return from interrupt
+;-------------------------------------------------------------------------------
+        COMMON  INTVEC                  //Interrupt Vectors
+;-------------------------------------------------------------------------------
+        ORG     RESET_VECTOR
+        DW      RESET
+        ORG     PORT1_VECTOR
+        DW      SW1_ISR
+        END
+        
