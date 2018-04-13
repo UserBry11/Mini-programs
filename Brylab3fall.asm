@@ -1,15 +1,14 @@
 /*--------------------------------------------------------
 *Name: Bryan Fernandez
-*Lab Assignment: 3
-*Section: 07
 *Date: Aug 11, 2017
 *Instructor: Kumar
-*Description: Write an assembly program that will examine an input
-*String. "Welcome to Assembly Programming @MSP430!". Your program
-*should count
+*Description: This program examins a sample string "Welcome to Assembly Programming @MSP430!". And 
+*displays:
+
 *# of total characters
 *# of upper case vowels
 *# of special characters (other than characters and digits)
+
 *Set the port P1 to display the number of special characters,
 *and port P2 to display the number of vowels.
 *Store the total number of characters in R10.
