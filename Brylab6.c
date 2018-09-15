@@ -1,9 +1,7 @@
 /* 
 Name: Bryan Fernandez
-Instructor: Sharshembiev
-Section: 07
-Date: 10/04/2017
-   Write a C program that initializes clock speed at 4 MHz.
+
+   A C program that initializes clock speed at 4 MHz.
    &= Bitwise AND asignment operator.   C &= 2 is same C = C & 2
    ^= Bitwise exclusive OR operator C ^= 2 is same C = C ^ 2
    |= Bitwise inclusive OR operator C |= 2 is same C = C | 2
